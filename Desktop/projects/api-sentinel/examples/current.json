@@ -1,0 +1,12 @@
+
+{
+    "id": 101,
+    "name": "Mechanical Keyboard",
+    "price": "4500.0",
+    "available": true,
+    "category": {
+        "id": 5,
+        "name": "Electronics"
+    },
+    "description": "A mechanical keyboard"
+}

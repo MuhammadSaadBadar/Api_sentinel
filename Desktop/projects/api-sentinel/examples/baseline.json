@@ -1,0 +1,11 @@
+
+{
+    "id": 101,
+    "name": "Mechanical Keyboard",
+    "price": 4500.0,
+    "in_stock": true,
+    "category": {
+        "id": 5,
+        "name": "Electronics"
+    }
+}
