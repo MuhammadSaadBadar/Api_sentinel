@@ -48,9 +48,6 @@ class CheckRun(Base):
 
     endpoint = relationship("Endpoint", back_populates="check_runs")
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
 def init_db():
     """Create all tables in the database."""
     Base.metadata.create_all(bind=engine)
