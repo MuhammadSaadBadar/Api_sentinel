@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, ConfigDict, HttpUrl
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -8,6 +8,17 @@ class EndpointCreate(BaseModel):
     url: str
     interval_seconds: int = 300
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EndpointUpdate(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    interval_seconds: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EndpointResponse(BaseModel):
     id: int
     name: str
@@ -16,8 +27,7 @@ class EndpointResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Check Run Schemas ---
 class CheckRunResponse(BaseModel):
@@ -28,8 +38,7 @@ class CheckRunResponse(BaseModel):
     findings_json: List[Dict[str, Any]]
     checked_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Baseline Schemas ---
 class BaselineResponse(BaseModel):
@@ -39,5 +48,4 @@ class BaselineResponse(BaseModel):
     version: int
     approved_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

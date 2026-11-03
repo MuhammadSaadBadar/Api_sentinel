@@ -1,53 +1,128 @@
 import logging
-from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.executors.asyncio import AsyncIOExecutor
 
-from .db import SessionLocal, Endpoint, Baseline, CheckRun
+from .db import SessionLocal, Endpoint
 from .monitoring_service import run_monitoring_check
+
 logger = logging.getLogger(__name__)
 
-async def run_check_for_endpoint(endpoint_id:int):
-    """background tak , run a check for a specific endpoint"""
-    
+jobstores = {"default": MemoryJobStore()}
+executors = {"default": AsyncIOExecutor()}
+job_defaults = {"coalesce": True, "max_instances": 1}
+
+scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
+
+
+async def run_check_for_endpoint(endpoint_id: int):
+    """Background task: run a check for a specific endpoint."""
     db = SessionLocal()
     try:
         endpoint = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
         if not endpoint or not endpoint.is_active:
             logger.warning(f"Endpoint {endpoint_id} not found or inactive.")
             return
-        
-        #2
-        baseline = db.query(Baseline).filter(Baseline.endpoint_id == endpoint_id).order_by(Baseline.version.desc()).first()
-        
+
+        baseline = (
+            db.query(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline)
+            .filter(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline.endpoint_id == endpoint_id)
+            .order_by(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline.version.desc())
+            .first()
+        )
+
         contract = baseline.contract_json if baseline else None
-        
-        #3
+
         logger.info(f"Running check for endpoint {endpoint.name} ({endpoint.url})")
-        result = await run_monitoring_check(endpoint.url,approved_contract= contract)
-        
-        
-        #4
+        result = await run_monitoring_check(endpoint.url, approved_contract=contract)
+
         if result["status"] != "awaiting_approval":
+            from .db import CheckRun
+
             check_run = CheckRun(
-                endpoint_id = endpoint.id,
-                status = result["status"],
-                duration_ms = result["duration_ms"],
-                findings_json = result["findings"]
+                endpoint_id=endpoint.id,
+                status=result["status"],
+                duration_ms=result["duration_ms"],
+                findings_json=result["findings"],
             )
             db.add(check_run)
             db.commit()
-            
+
     except Exception as e:
         logger.error(f"Error running check for endpoint {endpoint_id}: {e}")
         db.rollback()
     finally:
         db.close()
-        
+
+
+def _get_job_id(endpoint_id: int) -> str:
+    """Generate consistent job ID for an endpoint."""
+    return f"endpoint_{endpoint_id}"
+
+
+def schedule_endpoint(endpoint_id: int, interval_seconds: int):
+    """Add or update a scheduled job for an endpoint."""
+    job_id = _get_job_id(endpoint_id)
+    existing_job = scheduler.get_job(job_id)
+
+    if existing_job:
+        existing_job.reschedule(trigger=IntervalTrigger(seconds=interval_seconds))
+        logger.info(f"Updated schedule for endpoint {endpoint_id} to {interval_seconds}s")
+    else:
+        scheduler.add_job(
+            run_check_for_endpoint,
+            trigger=IntervalTrigger(seconds=interval_seconds),
+            id=job_id,
+            args=[endpoint_id],
+            name=f"Monitor endpoint {endpoint_id}",
+        )
+        logger.info(f"Scheduled endpoint {endpoint_id} every {interval_seconds}s")
+
+
+def unschedule_endpoint(endpoint_id: int):
+    """Remove a scheduled job for an endpoint."""
+    job_id = _get_job_id(endpoint_id)
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+        logger.info(f"Unscheduled endpoint {endpoint_id}")
+
+
+def load_active_endpoints():
+    """Load all active endpoints from database and schedule them."""
+    db = SessionLocal()
+    try:
+        endpoints = db.query(Endpoint).filter(Endpoint.is_active == True).all()
+        for endpoint in endpoints:
+            schedule_endpoint(endpoint.id, endpoint.interval_seconds)
+        logger.info(f"Loaded {len(endpoints)} active endpoints into scheduler")
+    finally:
+        db.close()
+
+
 def start_scheduler():
-    """initialize and start the backgorund scheduler for periodic checks"""
-    scheduler = AsyncIOScheduler()
-    
+    """Initialize and start the background scheduler."""
+    if scheduler.running:
+        logger.warning("Scheduler already running")
+        return scheduler
+
     scheduler.start()
-    logger.info("backGRound Scheduler started.")
+    load_active_endpoints()
+    logger.info("Background scheduler started.")
     return scheduler
+
+
+def shutdown_scheduler(wait: bool = True):
+    """Gracefully shutdown the scheduler."""
+    if scheduler.running:
+        scheduler.shutdown(wait=wait)
+        logger.info("Background scheduler stopped.")
+
+
+@asynccontextmanager
+async def scheduler_lifespan(app):
+    """FastAPI lifespan handler for scheduler."""
+    start_scheduler()
+    yield
+    shutdown_scheduler(wait=True)
