@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ endpoint.name }} - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="endpoint-detail">
+    <!-- Header -->
+    <div class="card-header" style="margin-bottom: 1.5rem;">
+        <div>
+            <h1 style="margin: 0;">{{ endpoint.name }}</h1>
+            <p style="margin: 0.5rem 0 0 0; color: var(--pico-muted-color);"><code>{{ endpoint.url }}</code></p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span class="status-badge status-{{ latest_status }}">{{ latest_status.replace('_', ' ').title() }}</span>
+            {% if endpoint.is_active %}
+                <form action="/endpoints/{{ endpoint.id }}/deactivate" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/deactivate" hx-target="body" hx-swap="innerHTML">
+                    <button type="submit" class="btn btn-outline">Pause Monitoring</button>
+                </form>
+            {% else %}
+                <form action="/endpoints/{{ endpoint.id }}/activate" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/activate" hx-target="body" hx-swap="innerHTML">
+                    <button type="submit" class="btn btn-secondary">Resume Monitoring</button>
+                </form>
+            {% endif %}
+            <a href="/ui/endpoints/{{ endpoint.id }}/edit" class="btn btn-outline">Edit Config</a>
+            <form action="/endpoints/{{ endpoint.id }}" method="delete" style="display: inline;" hx-delete="/endpoints/{{ endpoint.id }}" hx-target="body" hx-swap="innerHTML" hx-confirm="Are you sure you want to delete this endpoint? This action cannot be undone.">
+                <button type="submit" class="btn" style="background-color: var(--pico-color-red); border-color: var(--pico-color-red);">Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+        <a href="/ui/endpoints/{{ endpoint.id }}" class="{% if active_tab == 'overview' %}active{% endif %}">Overview</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=config" class="{% if active_tab == 'config' %}active{% endif %}">Configuration</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=baselines" class="{% if active_tab == 'baselines' %}active{% endif %}">Baselines</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=checks" class="{% if active_tab == 'checks' %}active{% endif %}">Checks</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=findings" class="{% if active_tab == 'findings' %}active{% endif %}">Findings</a>
+    </nav>
+
+    <!-- Tab Content -->
+    {% if active_tab == 'overview' %}
+        {% include "endpoints/overview.html" %}
+    {% elif active_tab == 'config' %}
+        {% include "endpoints/config.html" %}
+    {% elif active_tab == 'baselines' %}
+        {% include "endpoints/baselines.html" %}
+    {% elif active_tab == 'checks' %}
+        {% include "endpoints/checks.html" %}
+    {% elif active_tab == 'findings' %}
+        {% include "endpoints/findings.html" %}
+    {% endif %}
+</div>
+{% endblock %}

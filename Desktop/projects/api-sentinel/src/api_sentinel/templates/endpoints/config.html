@@ -1,0 +1,36 @@
+<div class="card">
+    <div class="card-header">
+        <h3>Endpoint Configuration</h3>
+    </div>
+    <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9375rem;">
+        <dt>Name</dt><dd>{{ endpoint.name }}</dd>
+        <dt>URL</dt><dd><code>{{ endpoint.url }}</code></dd>
+        <dt>Method</dt><dd><code>{{ endpoint.method }}</code></dd>
+        <dt>Monitoring Interval</dt><dd>{{ endpoint.interval_seconds }} seconds</dd>
+        <dt>Timeout</dt><dd>{{ endpoint.timeout_seconds }} seconds</dd>
+        <dt>Response Format</dt><dd>{{ endpoint.response_format }}</dd>
+        <dt>Expected Status Codes</dt><dd><code>{{ endpoint.expected_status_codes | tojson_safe(indent=2) }}</code></dd>
+        <dt>Created At</dt><dd>{{ endpoint.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
+    </dl>
+</div>
+
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3>Headers</h3>
+    </div>
+    <pre>{{ endpoint.headers | tojson_safe(indent=2) }}</pre>
+</div>
+
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3>Query Parameters</h3>
+    </div>
+    <pre>{{ endpoint.query_params | tojson_safe(indent=2) }}</pre>
+</div>
+
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3>Authentication Config</h3>
+    </div>
+    <pre>{{ endpoint.auth_config | tojson_safe(indent=2) }}</pre>
+</div>

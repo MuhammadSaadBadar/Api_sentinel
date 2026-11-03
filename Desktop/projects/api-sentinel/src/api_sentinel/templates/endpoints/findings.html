@@ -1,0 +1,44 @@
+<div class="card">
+    <div class="card-header">
+        <h3>All Findings</h3>
+    </div>
+
+    {% set all_findings = [] %}
+    {% for check in checks %}
+        {% for finding in check.findings_json %}
+            {% set _ = all_findings.append({**finding, 'check_id': check.id, 'checked_at': check.checked_at}) %}
+        {% endfor %}
+    {% endfor %}
+
+    {% if all_findings %}
+    <div class="table-container" style="overflow-x: auto;">
+        <table class="findings-table">
+            <thead>
+                <tr>
+                    <th>JSON Path</th>
+                    <th>Change Type</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
+                    <th>Detected At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for finding in all_findings %}
+                <tr>
+                    <td><code>{{ finding.path }}</code></td>
+                    <td><span class="change-{{ finding.change }}">{{ finding.change.replace('_', ' ').title() }}</span></td>
+                    <td><code>{{ finding.expected }}</code></td>
+                    <td><code>{{ finding.actual }}</code></td>
+                    <td>{{ finding.checked_at.strftime('%Y-%m-%d %H:%M:%S UTC') if finding.checked_at else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No findings detected.</p>
+        <p>All monitored endpoints are matching their approved contracts.</p>
+    </div>
+    {% endif %}
+</div>

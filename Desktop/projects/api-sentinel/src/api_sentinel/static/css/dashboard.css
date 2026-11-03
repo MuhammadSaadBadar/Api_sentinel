@@ -1,0 +1,354 @@
+/* API Sentinel Dashboard Styles */
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-healthy {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-changes_detected {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-http_error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-network_error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-invalid_json {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-awaiting_approval {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+/* Endpoint table */
+.endpoint-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.endpoint-table th,
+.endpoint-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.endpoint-table th {
+    font-weight: 600;
+    color: var(--pico-color);
+    background-color: var(--pico-card-background-color);
+}
+
+.endpoint-table tr:hover {
+    background-color: var(--pico-card-background-color);
+}
+
+.endpoint-table .actions {
+    white-space: nowrap;
+}
+
+.endpoint-table .actions a,
+.endpoint-table .actions button {
+    margin-right: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* JSON tree viewer */
+.json-tree {
+    font-family: monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.json-tree .json-key {
+    color: #d63384;
+}
+
+.json-tree .json-string {
+    color: #198754;
+}
+
+.json-tree .json-number {
+    color: #0d6efd;
+}
+
+.json-tree .json-boolean {
+    color: #6f42c1;
+}
+
+.json-tree .json-null {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.json-tree .json-brace {
+    color: #212529;
+}
+
+.json-tree .json-colon {
+    color: #212529;
+}
+
+.json-tree .json-comma {
+    color: #212529;
+}
+
+.json-tree .collapsed::before {
+    content: "▶ ";
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.json-tree .expanded::before {
+    content: "▼ ";
+    display: inline-block;
+}
+
+.json-tree .collapsed > .json-children {
+    display: none;
+}
+
+.json-tree .json-children {
+    margin-left: 1.5rem;
+    border-left: 1px solid var(--pico-muted-border-color);
+    padding-left: 0.5rem;
+}
+
+/* Findings table */
+.findings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.findings-table th,
+.findings-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.findings-table .change-field_added {
+    color: #198754;
+}
+
+.findings-table .change-field_removed {
+    color: #dc3545;
+}
+
+.findings-table .change-type_changed {
+    color: #fd7e14;
+}
+
+.findings-table .change-field_missing {
+    color: #dc3545;
+}
+
+/* Diff view */
+.diff-view {
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.diff-view .diff-added {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.diff-view .diff-removed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.diff-view .diff-changed {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.diff-view .diff-unchanged {
+    color: #6c757d;
+}
+
+/* Loading indicator */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator {
+    opacity: 1;
+}
+
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Card styles */
+.card {
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--pico-card-background-color);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    margin-bottom: 1rem;
+}
+
+.tabs a {
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    color: var(--pico-muted-color);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+}
+
+.tabs a:hover {
+    color: var(--pico-color);
+}
+
+.tabs a.active {
+    color: var(--pico-primary);
+    border-bottom-color: var(--pico-primary);
+    font-weight: 600;
+}
+
+/* Form improvements */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Flash messages */
+.flash {
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+.flash.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.flash.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.flash.warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.flash.info {
+    background-color: #cce5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--pico-muted-color);
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Monospace for code */
+code, pre {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+pre {
+    background-color: #f8f9fa;
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .endpoint-table {
+        font-size: 0.875rem;
+    }
+    
+    .endpoint-table th:nth-child(n+5),
+    .endpoint-table td:nth-child(n+5) {
+        display: none;
+    }
+    
+    .tabs a {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}

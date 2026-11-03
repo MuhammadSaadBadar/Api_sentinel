@@ -1,0 +1,48 @@
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>Baseline Versions</h3>
+        <form action="/endpoints/{{ endpoint.id }}/approve-baseline" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/approve-baseline" hx-target="body" hx-swap="innerHTML">
+            <button type="submit" class="btn">Approve New Baseline</button>
+        </form>
+    </div>
+
+    {% if baselines %}
+    <div class="table-container" style="overflow-x: auto;">
+        <table class="endpoint-table">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Approved At</th>
+                    <th>Contract Preview</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for baseline in baselines %}
+                <tr>
+                    <td><strong>v{{ baseline.version }}</strong></td>
+                    <td>{{ baseline.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+                    <td>
+                        <details>
+                            <summary>View Contract ({{ baseline.contract_json | tojson_safe | length }} chars)</summary>
+                            <pre style="margin-top: 0.5rem; max-height: 300px; overflow: auto;">{{ baseline.contract_json | tojson_safe(indent=2) }}</pre>
+                        </details>
+                    </td>
+                    <td>
+                        <a href="/ui/endpoints/{{ endpoint.id }}/baselines/{{ baseline.version }}" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">View Full</a>
+                        {% if not loop.first %}
+                        <span class="text-muted" style="font-size: 0.75rem;">(historical)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No baselines approved yet.</p>
+        <p>Click "Approve New Baseline" to fetch the endpoint and approve its first contract.</p>
+    </div>
+    {% endif %}
+</div>

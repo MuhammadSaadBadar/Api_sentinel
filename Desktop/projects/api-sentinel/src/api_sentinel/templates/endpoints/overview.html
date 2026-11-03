@@ -1,0 +1,65 @@
+<div class="card">
+    <div class="card-header">
+        <h3>Current Status</h3>
+    </div>
+    <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9375rem;">
+        <dt>Status</dt>
+        <dd><span class="status-badge status-{{ latest_status }}">{{ latest_status.replace('_', ' ').title() }}</span></dd>
+        
+        <dt>Last Check</dt>
+        <dd>
+            {% if latest_check %}
+                {{ latest_check.checked_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                ({{ latest_check.duration_ms }}ms)
+            {% else %}
+                <span class="text-muted">Never checked</span>
+            {% endif %}
+        </dd>
+        
+        <dt>Next Scheduled Check</dt>
+        <dd>
+            {% if endpoint.is_active and latest_check %}
+                {% set next_check = latest_check.checked_at.timestamp() + endpoint.interval_seconds %}
+                {{ (next_check | int) | datetime_utc }}
+            {% elif endpoint.is_active %}
+                <span class="text-muted">Pending first check...</span>
+            {% else %}
+                <span class="text-muted">Monitoring paused</span>
+            {% endif %}
+        </dd>
+        
+        <dt>Current Baseline</dt>
+        <dd>
+            {% if latest_baseline %}
+                Version {{ latest_baseline.version }} (approved {{ latest_baseline.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }})
+            {% else %}
+                <span class="text-muted">No baseline approved yet</span>
+            {% endif %}
+        </dd>
+        
+        <dt>Monitoring Interval</dt>
+        <dd>{{ endpoint.interval_seconds }} seconds</dd>
+        
+        <dt>Monitoring Active</dt>
+        <dd>{% if endpoint.is_active %}Yes{% else %}No (paused){% endif %}</dd>
+    </dl>
+</div>
+
+<div class="card" style="margin-top: 1rem;">
+    <div class="card-header">
+        <h3>Quick Actions</h3>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if not latest_baseline %}
+            <form action="/endpoints/{{ endpoint.id }}/approve-baseline" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/approve-baseline" hx-target="body" hx-swap="innerHTML">
+                <button type="submit" class="btn">Approve Initial Baseline</button>
+            </form>
+        {% else %}
+            <form action="/endpoints/{{ endpoint.id }}/approve-baseline" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/approve-baseline" hx-target="body" hx-swap="innerHTML">
+                <button type="submit" class="btn">Re-check & Approve New Baseline</button>
+            </form>
+        {% endif %}
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=baselines" class="btn btn-secondary">View Baselines</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}?tab=checks" class="btn btn-secondary">View Check History</a>
+    </div>
+</div>

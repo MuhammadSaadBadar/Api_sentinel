@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ endpoint.name }} - Baseline v{{ baseline.version }} - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="endpoint-detail">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1>{{ endpoint.name }}</h1>
+            <p style="margin: 0.5rem 0 0 0; color: var(--pico-muted-color);">Baseline Version {{ baseline.version }}</p>
+        </div>
+        <div>
+            <a href="/ui/endpoints/{{ endpoint.id }}?tab=baselines" class="btn btn-outline">← Back to Baselines</a>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+        <div class="card-header">
+            <h3>Baseline Information</h3>
+        </div>
+        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
+            <dt>Version</dt><dd>v{{ baseline.version }}</dd>
+            <dt>Approved At</dt><dd>{{ baseline.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
+            <dt>Endpoint</dt><dd>{{ endpoint.name }} (<code>{{ endpoint.url }}</code>)</dd>
+        </dl>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Contract (JSON Schema)</h3>
+        </div>
+        <pre>{{ baseline.contract_json | tojson_safe(indent=2) }}</pre>
+    </div>
+</div>
+{% endblock %}

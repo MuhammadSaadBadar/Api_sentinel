@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}API Sentinel{% endblock %}</title>
+    <!-- Pico.css for lightweight styling -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.10/css/pico.min.css">
+    <!-- HTMX for interactivity -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="container" role="banner">
+        <nav>
+            <ul>
+                <li><strong><a href="/ui/">API Sentinel</a></strong></li>
+            </ul>
+            <ul>
+                <li><a href="/ui/">Dashboard</a></li>
+                <li><a href="/ui/endpoints/new">Add Endpoint</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container" role="main">
+        {% if flash_messages %}
+            {% for category, message in flash_messages %}
+                <article class="flash {{ category }}" hx-swap-oob="true">
+                    {{ message }}
+                </article>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container" role="contentinfo">
+        <small>API Sentinel - Automated API Monitoring & Contract Change Detection</small>
+    </footer>
+
+    <script src="/static/js/dashboard.js"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

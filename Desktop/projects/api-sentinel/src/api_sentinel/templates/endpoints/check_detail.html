@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}{{ endpoint.name }} - Check #{{ check.id }} - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="endpoint-detail">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1>{{ endpoint.name }}</h1>
+            <p style="margin: 0.5rem 0 0 0; color: var(--pico-muted-color);">Check #{{ check.id }}</p>
+        </div>
+        <div>
+            <a href="/ui/endpoints/{{ endpoint.id }}?tab=checks" class="btn btn-outline">← Back to Checks</a>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+        <div class="card-header">
+            <h3>Check Details</h3>
+        </div>
+        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
+            <dt>Status</dt>
+            <dd><span class="status-badge status-{{ check.status }}">{{ check.status.replace('_', ' ').title() }}</span></dd>
+            <dt>Timestamp</dt>
+            <dd>{{ check.checked_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
+            <dt>Duration</dt>
+            <dd>{{ check.duration_ms }} ms</dd>
+            <dt>Baseline Version</dt>
+            <dd>{{ check.baseline_version if check.baseline_version is defined else 'N/A' }}</dd>
+        </dl>
+    </div>
+
+    {% if check.findings_json %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Findings ({{ check.findings_json | length }})</h3>
+        </div>
+        <div class="table-container" style="overflow-x: auto;">
+            <table class="findings-table">
+                <thead>
+                    <tr>
+                        <th>JSON Path</th>
+                        <th>Change Type</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for finding in check.findings_json %}
+                    <tr>
+                        <td><code>{{ finding.path }}</code></td>
+                        <td><span class="change-{{ finding.change }}">{{ finding.change.replace('_', ' ').title() }}</span></td>
+                        <td><code>{{ finding.expected }}</code></td>
+                        <td><code>{{ finding.actual }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+    <div class="card">
+        <div class="card-header">
+            <h3>No Findings</h3>
+        </div>
+        <p class="text-muted">This check found no structural changes.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

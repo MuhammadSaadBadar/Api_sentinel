@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{% if endpoint %}Edit{% else %}New{% endif %} Endpoint - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h1>{% if endpoint %}Edit{% else %}Add{% endif %} Endpoint</h1>
+        <a href="/ui/" class="btn btn-outline">← Back to Dashboard</a>
+    </div>
+
+    <form action="{{ action_url }}" method="{{ method }}" hx-post="{{ action_url }}" hx-target="body" hx-swap="innerHTML" hx-push-url="true">
+        <input type="hidden" name="_method" value="{{ method }}">
+
+        <!-- Basic Info -->
+        <fieldset>
+            <legend>Basic Information</legend>
+            <div class="form-group">
+                <label for="name">Name <span style="color: red;">*</span></label>
+                <input type="text" id="name" name="name" value="{{ endpoint.name if endpoint else '' }}" required placeholder="e.g., Products API">
+            </div>
+            <div class="form-group">
+                <label for="url">URL <span style="color: red;">*</span></label>
+                <input type="url" id="url" name="url" value="{{ endpoint.url if endpoint else '' }}" required placeholder="https://api.example.com/endpoint">
+            </div>
+            <div class="form-group">
+                <label for="method">HTTP Method</label>
+                <select id="method" name="method">
+                    <option value="GET" {% if endpoint and endpoint.method == 'GET' %}selected{% endif %}>GET</option>
+                    <option value="POST" {% if endpoint and endpoint.method == 'POST' %}selected{% endif %}>POST</option>
+                    <option value="PUT" {% if endpoint and endpoint.method == 'PUT' %}selected{% endif %}>PUT</option>
+                    <option value="PATCH" {% if endpoint and endpoint.method == 'PATCH' %}selected{% endif %}>PATCH</option>
+                    <option value="DELETE" {% if endpoint and endpoint.method == 'DELETE' %}selected{% endif %}>DELETE</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="interval_seconds">Monitoring Interval (seconds)</label>
+                <input type="number" id="interval_seconds" name="interval_seconds" value="{{ endpoint.interval_seconds if endpoint else 300 }}" min="60" placeholder="300">
+                <small>How frequently to check this endpoint (minimum 60 seconds)</small>
+            </div>
+        </fieldset>
+
+        <!-- Request Configuration -->
+        <fieldset style="margin-top: 1.5rem;">
+            <legend>Request Configuration</legend>
+            <div class="form-group">
+                <label for="headers">Headers (JSON)</label>
+                <textarea id="headers" name="headers" placeholder='{"Content-Type": "application/json", "X-Custom": "value"}'>{{ endpoint.headers | tojson_safe if endpoint else '{}' }}</textarea>
+                <small>Request headers as JSON object</small>
+            </div>
+            <div class="form-group">
+                <label for="query_params">Query Parameters (JSON)</label>
+                <textarea id="query_params" name="query_params" placeholder='{"version": "v1", "limit": "100"}'>{{ endpoint.query_params | tojson_safe if endpoint else '{}' }}</textarea>
+                <small>Query parameters as JSON object</small>
+            </div>
+            <div class="form-group">
+                <label for="timeout_seconds">Timeout (seconds)</label>
+                <input type="number" id="timeout_seconds" name="timeout_seconds" value="{{ endpoint.timeout_seconds if endpoint else 30 }}" min="1" max="300">
+            </div>
+        </fieldset>
+
+        <!-- Authentication -->
+        <fieldset style="margin-top: 1.5rem;">
+            <legend>Authentication</legend>
+            <div class="form-group">
+                <label for="auth_config">Auth Configuration (JSON)</label>
+                <textarea id="auth_config" name="auth_config" placeholder='{"type": "bearer", "token": "your-token"}'>{{ endpoint.auth_config | tojson_safe if endpoint else '{}' }}</textarea>
+                <small>
+                    Supported types: 
+                    <code>bearer</code> (requires <code>token</code>), 
+                    <code>api_key</code> (requires <code>key</code>, optional <code>header_name</code>), 
+                    <code>basic</code> (requires <code>username</code> and <code>password</code>)
+                </small>
+            </div>
+        </fieldset>
+
+        <!-- Response Validation -->
+        <fieldset style="margin-top: 1.5rem;">
+            <legend>Response Validation</legend>
+            <div class="form-group">
+                <label for="expected_status_codes">Expected Status Codes (JSON array)</label>
+                <input type="text" id="expected_status_codes" name="expected_status_codes" value="{{ endpoint.expected_status_codes | tojson_safe if endpoint else '[200]' }}" placeholder="[200, 201]">
+                <small>Acceptable HTTP status codes as JSON array</small>
+            </div>
+            <div class="form-group">
+                <label for="response_format">Response Format</label>
+                <select id="response_format" name="response_format">
+                    <option value="json" {% if endpoint and endpoint.response_format == 'json' %}selected{% endif %}>JSON</option>
+                </select>
+            </div>
+        </fieldset>
+
+        <!-- Actions -->
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--pico-muted-border-color);">
+            <button type="submit" class="btn">{% if endpoint %}Update{% else %}Create{% endif %} Endpoint</button>
+            <a href="/ui/" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

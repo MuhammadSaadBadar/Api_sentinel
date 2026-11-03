@@ -1,0 +1,42 @@
+{% for endpoint in endpoints %}
+<tr hx-get="/ui/partials/endpoint-row/{{ endpoint.id }}" hx-trigger="every 30s" hx-swap="outerHTML">
+    <td>{{ endpoint.name }}</td>
+    <td><code>{{ endpoint.url }}</code></td>
+    <td><code>{{ endpoint.method }}</code></td>
+    <td>{{ endpoint.interval_seconds }}s</td>
+    <td>
+        {% set status = endpoint.latest_status or 'unknown' %}
+        <span class="status-badge status-{{ status }}">{{ status.replace('_', ' ').title() }}</span>
+    </td>
+    <td>
+        {% if endpoint.latest_check %}
+            {{ endpoint.latest_check.checked_at.strftime('%Y-%m-%d %H:%M:%S') }}
+        {% else %}
+            <span class="text-muted">Never</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if endpoint.latest_baseline %}
+            v{{ endpoint.latest_baseline.version }}
+        {% else %}
+            <span class="text-muted">Pending</span>
+        {% endif %}
+    </td>
+    <td class="actions">
+        <a href="/ui/endpoints/{{ endpoint.id }}" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">View</a>
+        <a href="/ui/endpoints/{{ endpoint.id }}/edit" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Edit</a>
+        {% if endpoint.is_active %}
+            <form action="/endpoints/{{ endpoint.id }}/deactivate" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/deactivate" hx-target="closest tr" hx-swap="outerHTML">
+                <button type="submit" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Pause</button>
+            </form>
+        {% else %}
+            <form action="/endpoints/{{ endpoint.id }}/activate" method="post" style="display: inline;" hx-post="/endpoints/{{ endpoint.id }}/activate" hx-target="closest tr" hx-swap="outerHTML">
+                <button type="submit" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Resume</button>
+            </form>
+        {% endif %}
+        <form action="/endpoints/{{ endpoint.id }}" method="delete" style="display: inline;" hx-delete="/endpoints/{{ endpoint.id }}" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="Are you sure you want to delete this endpoint?">
+            <button type="submit" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; color: var(--pico-color-red);">Delete</button>
+        </form>
+    </td>
+</tr>
+{% endfor %}

@@ -1,0 +1,47 @@
+<div class="card">
+    <div class="card-header">
+        <h3>Monitoring History</h3>
+    </div>
+
+    {% if checks %}
+    <div class="table-container" style="overflow-x: auto;">
+        <table class="endpoint-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Findings</th>
+                    <th>Baseline Version</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in checks %}
+                <tr>
+                    <td>{{ check.checked_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+                    <td><span class="status-badge status-{{ check.status }}">{{ check.status.replace('_', ' ').title() }}</span></td>
+                    <td>{{ check.duration_ms }}ms</td>
+                    <td>
+                        {% if check.findings_json %}
+                            <span class="badge" style="background-color: #fff3cd; color: #856404;">{{ check.findings_json | length }} finding(s)</span>
+                        {% else %}
+                            <span class="text-muted">None</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ check.baseline_version if check.baseline_version is defined else 'N/A' }}</td>
+                    <td>
+                        <a href="/ui/endpoints/{{ endpoint.id }}/checks/{{ check.id }}" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">View Details</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No checks performed yet.</p>
+        <p>The scheduler will automatically check this endpoint every {{ endpoint.interval_seconds }} seconds.</p>
+    </div>
+    {% endif %}
+</div>

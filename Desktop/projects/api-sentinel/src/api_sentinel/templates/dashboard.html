@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h1>Dashboard</h1>
+        <a href="/ui/endpoints/new" class="btn" role="button">Add Endpoint</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Monitored Endpoints</h2>
+        <span class="htmx-indicator" hx-trigger="every 30s" hx-get="/ui/partials/endpoint-list" hx-target="#endpoint-table-body" hx-swap="innerHTML">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1" stroke-linecap="round"/>
+            </svg>
+        </span>
+    </div>
+
+    <div class="table-container" style="overflow-x: auto;">
+        <table class="endpoint-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Method</th>
+                    <th>Interval</th>
+                    <th>Status</th>
+                    <th>Last Check</th>
+                    <th>Baseline</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="endpoint-table-body">
+                {% include "partials/endpoint_list.html" %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not endpoints %}
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <h3>No endpoints configured</h3>
+        <p>Get started by adding your first API endpoint to monitor.</p>
+        <a href="/ui/endpoints/new" class="btn" role="button" style="margin-top: 1rem;">Add Endpoint</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Auto-refresh trigger -->
+<div hx-trigger="every 30s" hx-get="/ui/partials/endpoint-list" hx-target="#endpoint-table-body" hx-swap="innerHTML" style="display: none;"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
