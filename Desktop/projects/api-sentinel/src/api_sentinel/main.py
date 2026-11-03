@@ -33,6 +33,13 @@ def create_endpoint(endpoint_in: EndpointCreate, db: Session = Depends(get_db)):
     new_endpoint = Endpoint(
         name=endpoint_in.name,
         url=endpoint_in.url,
+        method=endpoint_in.method,
+        headers=endpoint_in.headers,
+        query_params=endpoint_in.query_params,
+        auth_config=endpoint_in.auth_config,
+        timeout_seconds=endpoint_in.timeout_seconds,
+        expected_status_codes=endpoint_in.expected_status_codes,
+        response_format=endpoint_in.response_format,
         interval_seconds=endpoint_in.interval_seconds,
     )
     db.add(new_endpoint)
@@ -76,7 +83,6 @@ def update_endpoint(endpoint_id: int, endpoint_in: EndpointUpdate, db: Session =
             raise HTTPException(status_code=400, detail="Endpoint with this URL already exists")
 
     was_active = endpoint.is_active
-    old_interval = endpoint.interval_seconds
 
     for field, value in update_data.items():
         setattr(endpoint, field, value)
@@ -84,7 +90,7 @@ def update_endpoint(endpoint_id: int, endpoint_in: EndpointUpdate, db: Session =
     db.commit()
     db.refresh(endpoint)
 
-    # Manage scheduler job
+    # Manage scheduler job if interval changed
     if endpoint.is_active:
         schedule_endpoint(endpoint.id, endpoint.interval_seconds)
     elif was_active:
@@ -144,7 +150,15 @@ async def approve_baseline(endpoint_id: int, db: Session = Depends(get_db)):
     if not endpoint:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
-    result = await run_monitoring_check(endpoint.url)
+    result = await run_monitoring_check(
+        url=endpoint.url,
+        method=endpoint.method,
+        headers=endpoint.headers,
+        query_params=endpoint.query_params,
+        auth_config=endpoint.auth_config,
+        timeout_seconds=endpoint.timeout_seconds,
+        expected_status_codes=endpoint.expected_status_codes,
+    )
 
     if result["status"] != "awaiting_approval":
         raise HTTPException(

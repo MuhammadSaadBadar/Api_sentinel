@@ -11,8 +11,8 @@ from api_sentinel.db import Base, get_db, Endpoint, Baseline
 
 # Create a shared in-memory DB for tests
 engine = create_engine(
-    "sqlite://", 
-    connect_args={"check_same_thread": False}, 
+    "sqlite://",
+    connect_args={"check_same_thread": False},
     poolclass=StaticPool
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,6 +35,7 @@ def clean_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
+
 def test_create_endpoint():
     response = client.post("/endpoints", json={
         "name": "Test API",
@@ -42,7 +43,12 @@ def test_create_endpoint():
         "interval_seconds": 60
     })
     assert response.status_code == 201
-    assert response.json()["name"] == "Test API"
+    data = response.json()
+    assert data["name"] == "Test API"
+    assert data["method"] == "GET"
+    assert data["headers"] == {}
+    assert data["query_params"] == {}
+    assert data["timeout_seconds"] == 30
 
     # Try to create duplicate
     response = client.post("/endpoints", json={
@@ -52,6 +58,31 @@ def test_create_endpoint():
     })
     assert response.status_code == 400
 
+
+def test_create_endpoint_with_full_config():
+    response = client.post("/endpoints", json={
+        "name": "Full Config API",
+        "url": "https://api.example.com/full",
+        "method": "POST",
+        "headers": {"Content-Type": "application/json"},
+        "query_params": {"version": "v1"},
+        "auth_config": {"type": "bearer", "token": "secret"},
+        "timeout_seconds": 60,
+        "expected_status_codes": [200, 201],
+        "response_format": "json",
+        "interval_seconds": 120
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["method"] == "POST"
+    assert data["headers"] == {"Content-Type": "application/json"}
+    assert data["query_params"] == {"version": "v1"}
+    assert data["auth_config"] == {"type": "bearer", "token": "secret"}
+    assert data["timeout_seconds"] == 60
+    assert data["expected_status_codes"] == [200, 201]
+    assert data["interval_seconds"] == 120
+
+
 @respx.mock
 def test_approve_baseline():
     # Register endpoint
@@ -59,12 +90,12 @@ def test_approve_baseline():
         "name": "Test API",
         "url": "https://api.example.com/test"
     })
-    
+
     # Mock API response
     respx.get("https://api.example.com/test").mock(
         return_value=httpx.Response(200, json={"id": 1})
     )
-    
+
     # Approve baseline
     response = client.post("/endpoints/1/approve-baseline")
     assert response.status_code == 200
@@ -76,3 +107,86 @@ def test_approve_baseline():
     response = client.post("/endpoints/1/approve-baseline")
     assert response.status_code == 200
     assert response.json()["version"] == 2
+
+
+@respx.mock
+def test_approve_baseline_with_full_config():
+    client.post("/endpoints", json={
+        "name": "Test API",
+        "url": "https://api.example.com/test",
+        "method": "POST",
+        "headers": {"X-Custom": "value"},
+        "auth_config": {"type": "bearer", "token": "test-token"},
+    })
+
+    route = respx.post("https://api.example.com/test").mock(
+        return_value=httpx.Response(200, json={"id": 1})
+    )
+
+    response = client.post("/endpoints/1/approve-baseline")
+    assert response.status_code == 200
+
+    # Verify the request was made with correct method and headers
+    assert route.calls.last.request.method == "POST"
+    assert route.calls.last.request.headers.get("X-Custom") == "value"
+    assert route.calls.last.request.headers.get("Authorization") == "Bearer test-token"
+
+
+def test_list_endpoints():
+    client.post("/endpoints", json={"name": "API 1", "url": "https://api.example.com/1"})
+    client.post("/endpoints", json={"name": "API 2", "url": "https://api.example.com/2"})
+
+    response = client.get("/endpoints")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+
+def test_get_endpoint():
+    create_resp = client.post("/endpoints", json={"name": "Test API", "url": "https://api.example.com/test"})
+    endpoint_id = create_resp.json()["id"]
+
+    response = client.get(f"/endpoints/{endpoint_id}")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Test API"
+
+
+def test_update_endpoint():
+    create_resp = client.post("/endpoints", json={"name": "Test API", "url": "https://api.example.com/test"})
+    endpoint_id = create_resp.json()["id"]
+
+    response = client.patch(f"/endpoints/{endpoint_id}", json={
+        "name": "Updated API",
+        "interval_seconds": 120
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated API"
+    assert data["interval_seconds"] == 120
+
+
+def test_delete_endpoint():
+    create_resp = client.post("/endpoints", json={"name": "Test API", "url": "https://api.example.com/test"})
+    endpoint_id = create_resp.json()["id"]
+
+    response = client.delete(f"/endpoints/{endpoint_id}")
+    assert response.status_code == 204
+
+    # Verify it's gone
+    response = client.get(f"/endpoints/{endpoint_id}")
+    assert response.status_code == 404
+
+
+def test_activate_deactivate_endpoint():
+    create_resp = client.post("/endpoints", json={"name": "Test API", "url": "https://api.example.com/test"})
+    endpoint_id = create_resp.json()["id"]
+
+    # Deactivate
+    response = client.post(f"/endpoints/{endpoint_id}/deactivate")
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    # Activate
+    response = client.post(f"/endpoints/{endpoint_id}/activate")
+    assert response.status_code == 200
+    assert response.json()["is_active"] == True

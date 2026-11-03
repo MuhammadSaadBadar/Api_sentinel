@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean, Text
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 DATABASE_URL = "sqlite:///sentinel.db"
@@ -8,9 +8,11 @@ engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 def utc_now():
     """Helper to return timezone-aware UTC datetime."""
     return datetime.now(timezone.utc)
+
 
 class Endpoint(Base):
     __tablename__ = "endpoints"
@@ -18,12 +20,20 @@ class Endpoint(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     url = Column(String, nullable=False, unique=True)
+    method = Column(String, default="GET")
+    headers = Column(JSON, default=dict)
+    query_params = Column(JSON, default=dict)
+    auth_config = Column(JSON, default=dict)
+    timeout_seconds = Column(Integer, default=30)
+    expected_status_codes = Column(JSON, default=lambda: [200])
+    response_format = Column(String, default="json")
     interval_seconds = Column(Integer, default=300)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     baselines = relationship("Baseline", back_populates="endpoint", cascade="all, delete-orphan")
     check_runs = relationship("CheckRun", back_populates="endpoint", cascade="all, delete-orphan")
+
 
 class Baseline(Base):
     __tablename__ = "baselines"
@@ -35,6 +45,7 @@ class Baseline(Base):
     approved_at = Column(DateTime(timezone=True), default=utc_now)
 
     endpoint = relationship("Endpoint", back_populates="baselines")
+
 
 class CheckRun(Base):
     __tablename__ = "check_runs"
@@ -48,9 +59,11 @@ class CheckRun(Base):
 
     endpoint = relationship("Endpoint", back_populates="check_runs")
 
+
 def init_db():
     """Create all tables in the database."""
     Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     """Dependency for FastAPI later, but useful for testing now."""

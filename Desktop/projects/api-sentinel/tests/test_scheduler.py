@@ -41,7 +41,19 @@ def clean_scheduler():
 
 @pytest.mark.asyncio
 async def test_run_check_for_endpoint(test_db):
-    endpoint = Endpoint(name="Test API", url="https://api.example.com/products")
+    endpoint = Endpoint(
+        name="Test API",
+        url="https://api.example.com/products",
+        method="GET",
+        headers={},
+        query_params={},
+        auth_config={},
+        timeout_seconds=30,
+        expected_status_codes=[200],
+        response_format="json",
+        interval_seconds=300,
+        is_active=True
+    )
     test_db.add(endpoint)
     test_db.commit()
 
@@ -66,7 +78,19 @@ async def test_run_check_for_endpoint(test_db):
 
 @pytest.mark.asyncio
 async def test_run_check_saves_breaking_change(test_db):
-    endpoint = Endpoint(name="Test API", url="https://api.example.com/products")
+    endpoint = Endpoint(
+        name="Test API",
+        url="https://api.example.com/products",
+        method="GET",
+        headers={},
+        query_params={},
+        auth_config={},
+        timeout_seconds=30,
+        expected_status_codes=[200],
+        response_format="json",
+        interval_seconds=300,
+        is_active=True
+    )
     test_db.add(endpoint)
     test_db.commit()
 
@@ -94,7 +118,19 @@ async def test_schedule_and_unschedule_endpoint(test_db):
     start_scheduler()
 
     try:
-        endpoint = Endpoint(name="Test API", url="https://api.example.com/test", interval_seconds=60)
+        endpoint = Endpoint(
+            name="Test API",
+            url="https://api.example.com/test",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=60,
+            is_active=True
+        )
         test_db.add(endpoint)
         test_db.commit()
 
@@ -117,9 +153,45 @@ async def test_load_active_endpoints(test_db):
     start_scheduler()
 
     try:
-        endpoint1 = Endpoint(name="API 1", url="https://api.example.com/1", interval_seconds=60, is_active=True)
-        endpoint2 = Endpoint(name="API 2", url="https://api.example.com/2", interval_seconds=120, is_active=True)
-        endpoint3 = Endpoint(name="API 3", url="https://api.example.com/3", interval_seconds=30, is_active=False)
+        endpoint1 = Endpoint(
+            name="API 1",
+            url="https://api.example.com/1",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=60,
+            is_active=True
+        )
+        endpoint2 = Endpoint(
+            name="API 2",
+            url="https://api.example.com/2",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=120,
+            is_active=True
+        )
+        endpoint3 = Endpoint(
+            name="API 3",
+            url="https://api.example.com/3",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=30,
+            is_active=False
+        )
         test_db.add_all([endpoint1, endpoint2, endpoint3])
         test_db.commit()
 
@@ -143,7 +215,19 @@ async def test_schedule_endpoint_updates_existing_job(test_db):
     start_scheduler()
 
     try:
-        endpoint = Endpoint(name="Test API", url="https://api.example.com/test", interval_seconds=60)
+        endpoint = Endpoint(
+            name="Test API",
+            url="https://api.example.com/test",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=60,
+            is_active=True
+        )
         test_db.add(endpoint)
         test_db.commit()
 
@@ -164,7 +248,19 @@ async def test_job_defaults_prevent_overlap(test_db):
     start_scheduler()
 
     try:
-        endpoint = Endpoint(name="Test API", url="https://api.example.com/test", interval_seconds=60)
+        endpoint = Endpoint(
+            name="Test API",
+            url="https://api.example.com/test",
+            method="GET",
+            headers={},
+            query_params={},
+            auth_config={},
+            timeout_seconds=30,
+            expected_status_codes=[200],
+            response_format="json",
+            interval_seconds=60,
+            is_active=True
+        )
         test_db.add(endpoint)
         test_db.commit()
 

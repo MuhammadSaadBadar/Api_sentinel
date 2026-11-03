@@ -5,7 +5,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 
-from .db import SessionLocal, Endpoint
+from .db import SessionLocal, Endpoint, Baseline, CheckRun
 from .monitoring_service import run_monitoring_check
 
 logger = logging.getLogger(__name__)
@@ -27,20 +27,27 @@ async def run_check_for_endpoint(endpoint_id: int):
             return
 
         baseline = (
-            db.query(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline)
-            .filter(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline.endpoint_id == endpoint_id)
-            .order_by(__import__("api_sentinel.db", fromlist=["Baseline"]).Baseline.version.desc())
+            db.query(Baseline)
+            .filter(Baseline.endpoint_id == endpoint_id)
+            .order_by(Baseline.version.desc())
             .first()
         )
 
         contract = baseline.contract_json if baseline else None
 
         logger.info(f"Running check for endpoint {endpoint.name} ({endpoint.url})")
-        result = await run_monitoring_check(endpoint.url, approved_contract=contract)
+        result = await run_monitoring_check(
+            url=endpoint.url,
+            approved_contract=contract,
+            method=endpoint.method,
+            headers=endpoint.headers,
+            query_params=endpoint.query_params,
+            auth_config=endpoint.auth_config,
+            timeout_seconds=endpoint.timeout_seconds,
+            expected_status_codes=endpoint.expected_status_codes,
+        )
 
         if result["status"] != "awaiting_approval":
-            from .db import CheckRun
-
             check_run = CheckRun(
                 endpoint_id=endpoint.id,
                 status=result["status"],
