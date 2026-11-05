@@ -5,7 +5,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 
-from .db import SessionLocal, Endpoint, Baseline, CheckRun
+from .db import SessionLocal, Endpoint, Baseline, CheckRun, Finding
 from .monitoring_service import run_monitoring_check
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ job_defaults = {"coalesce": True, "max_instances": 1}
 scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
 
 
-async def run_check_for_endpoint(endpoint_id: int):
+async def run_check_for_endpoint(endpoint_id: int, test_mode: bool = False):
     """Background task: run a check for a specific endpoint."""
     db = SessionLocal()
     try:
@@ -45,16 +45,33 @@ async def run_check_for_endpoint(endpoint_id: int):
             auth_config=endpoint.auth_config,
             timeout_seconds=endpoint.timeout_seconds,
             expected_status_codes=endpoint.expected_status_codes,
+            test_mode=test_mode,
         )
 
         if result["status"] != "awaiting_approval":
             check_run = CheckRun(
                 endpoint_id=endpoint.id,
+                baseline_version=baseline.version if baseline else None,
                 status=result["status"],
                 duration_ms=result["duration_ms"],
                 findings_json=result["findings"],
             )
             db.add(check_run)
+            db.flush()  # Get the check_run.id
+
+            # Save individual findings to Finding table
+            for finding in result["findings"]:
+                finding_obj = Finding(
+                    check_run_id=check_run.id,
+                    json_path=finding["path"],
+                    change_type=finding["change"],
+                    expected=str(finding.get("expected", "")),
+                    actual=str(finding.get("actual", "")),
+                    severity=finding.get("severity", "info"),
+                    review_status="new",
+                )
+                db.add(finding_obj)
+
             db.commit()
 
     except Exception as e:

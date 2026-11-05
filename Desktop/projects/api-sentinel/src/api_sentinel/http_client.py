@@ -1,6 +1,7 @@
 import time
 import ipaddress
 import logging
+import socket
 from typing import Mapping, Optional
 from urllib.parse import urlparse
 
@@ -11,9 +12,49 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # 10MB
 SENSITIVE_HEADER_KEYS = {"authorization", "api-key", "apikey", "x-api-key", "token", "secret", "password"}
 
+# Cloud metadata IPs to block
+BLOCKED_IPS = {
+    ipaddress.ip_address("169.254.169.254"),  # AWS/GCP/Azure metadata
+    ipaddress.ip_address("127.0.0.1"),         # Loopback
+    ipaddress.ip_address("::1"),               # IPv6 loopback
+}
+
+
+def is_safe_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Check if an IP address is safe to connect to."""
+    # Block private, loopback, link-local, multicast, reserved
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+        return False
+    # Block known cloud metadata endpoints
+    if ip in BLOCKED_IPS:
+        return False
+    return True
+
+
+def resolve_and_validate_hostname(hostname: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """
+    Resolve hostname to IP addresses and validate each one.
+    This prevents DNS rebinding attacks by resolving at request time.
+    """
+    try:
+        # Get all IP addresses for the hostname
+        infos = socket.getaddrinfo(hostname, None, family=socket.AF_UNSPEC, type=socket.SOCK_STREAM)
+        ips = []
+        for info in infos:
+            ip_str = info[4][0]
+            try:
+                ip = ipaddress.ip_address(ip_str)
+                ips.append(ip)
+            except ValueError:
+                continue
+        return ips
+    except socket.gaierror as e:
+        logger.warning(f"DNS resolution failed for {hostname}: {e}")
+        return []
+
 
 def is_safe_url(url: str, allow_hostnames: bool = True) -> bool:
-    """Validate URL to prevent SSRF attacks."""
+    """Validate URL to prevent SSRF attacks (initial check before request)."""
     try:
         parsed = urlparse(url)
         
@@ -21,32 +62,22 @@ def is_safe_url(url: str, allow_hostnames: bool = True) -> bool:
         if parsed.scheme not in ("http", "https"):
             return False
             
-        # Resolve hostname to IP
         hostname = parsed.hostname
         if not hostname:
             return False
             
+        # If it's already an IP, validate directly
         try:
             ip = ipaddress.ip_address(hostname)
+            return is_safe_ip(ip)
         except ValueError:
-            # Hostname is not an IP
+            # Hostname - will be resolved at request time
             if not allow_hostnames:
                 logger.warning(f"Blocked URL with hostname (not IP): {url}")
                 return False
-            logger.warning(f"URL uses hostname (not IP): {url}. Consider using IP addresses for better security.")
+            logger.debug(f"URL uses hostname (will resolve at request time): {url}")
             return True
             
-        # Block private, loopback, link-local, multicast, reserved
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
-            logger.warning(f"Blocked unsafe URL (private/reserved IP): {url}")
-            return False
-            
-        # Block cloud metadata endpoints (common SSRF targets)
-        if ip == ipaddress.ip_address("169.254.169.254"):  # AWS/GCP/Azure metadata
-            logger.warning(f"Blocked cloud metadata URL: {url}")
-            return False
-            
-        return True
     except Exception as e:
         logger.warning(f"URL validation failed for {url}: {e}")
         return False
@@ -72,9 +103,12 @@ async def fetch_endpoint(
     expected_status_codes: Optional[list[int]] = None,
     max_response_size: int = DEFAULT_MAX_RESPONSE_SIZE,
     allow_hostnames: bool = True,
+    test_mode: bool = False,
 ) -> dict:
     """
     Fetch an endpoint and return its response metadata.
+    
+    Includes DNS rebinding protection by resolving hostname at request time.
     
     Args:
         url: The URL to fetch
@@ -85,11 +119,12 @@ async def fetch_endpoint(
         expected_status_codes: List of acceptable status codes
         max_response_size: Maximum response body size in bytes
         allow_hostnames: Allow hostnames (not just IPs) - for testing
+        test_mode: Skip DNS validation for testing
         
     Returns:
         Dict with response metadata
     """
-    if not is_safe_url(url, allow_hostnames=allow_hostnames):
+    if not test_mode and not is_safe_url(url, allow_hostnames=allow_hostnames):
         return {
             "success": False,
             "status_code": None,
@@ -104,6 +139,64 @@ async def fetch_endpoint(
 
     start_time = time.perf_counter()
     safe_headers = dict(headers) if headers else {}
+    
+    # Parse URL for hostname validation after DNS resolution
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    
+    if not test_mode:
+        # DNS Rebinding Protection: Resolve hostname at request time and validate IPs
+        if hostname:
+            try:
+                ip = ipaddress.ip_address(hostname)
+                # It's already an IP, validate it
+                if not is_safe_ip(ip):
+                    logger.warning(f"Blocked unsafe IP at request time: {url} -> {ip}")
+                    return {
+                        "success": False,
+                        "status_code": None,
+                        "duration_ms": 0,
+                        "body": None,
+                        "json_error": "URL blocked by security policy (unsafe IP)",
+                        "headers": {},
+                    }
+            except ValueError:
+                # It's a hostname, resolve and validate
+                if not allow_hostnames:
+                    logger.warning(f"Blocked URL with hostname at request time: {url}")
+                    return {
+                        "success": False,
+                        "status_code": None,
+                        "duration_ms": 0,
+                        "body": None,
+                        "json_error": "URL blocked by security policy (hostname not allowed)",
+                        "headers": {},
+                    }
+                
+                resolved_ips = resolve_and_validate_hostname(hostname)
+                if not resolved_ips:
+                    logger.warning(f"DNS resolution failed or no valid IPs for {hostname}")
+                    return {
+                        "success": False,
+                        "status_code": None,
+                        "duration_ms": 0,
+                        "body": None,
+                        "json_error": "DNS resolution failed",
+                        "headers": {},
+                    }
+                
+                # Check all resolved IPs
+                for ip in resolved_ips:
+                    if not is_safe_ip(ip):
+                        logger.warning(f"Blocked unsafe resolved IP at request time: {url} -> {ip}")
+                        return {
+                            "success": False,
+                            "status_code": None,
+                            "duration_ms": 0,
+                            "body": None,
+                            "json_error": "URL blocked by security policy (unsafe resolved IP)",
+                            "headers": {},
+                        }
     
     async with httpx.AsyncClient(
         timeout=timeout_seconds,

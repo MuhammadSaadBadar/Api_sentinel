@@ -13,7 +13,7 @@ async def test_successful_json_fetch():
             )
         )
 
-        result = await fetch_endpoint("https://api.example.com/products")
+        result = await fetch_endpoint("https://api.example.com/products", test_mode=True)
 
     assert result["success"] is True
     assert result["status_code"] == 200
@@ -29,7 +29,7 @@ async def test_invalid_json_response():
             return_value=httpx.Response(200, text="<html>Not JSON</html>")
         )
 
-        result = await fetch_endpoint("https://api.example.com/broken")
+        result = await fetch_endpoint("https://api.example.com/broken", test_mode=True)
 
     assert result["success"] is True
     assert result["body"] is None
@@ -43,7 +43,7 @@ async def test_network_timeout():
             side_effect=httpx.TimeoutException("Timeout")
         )
 
-        result = await fetch_endpoint("https://api.example.com/slow")
+        result = await fetch_endpoint("https://api.example.com/slow", test_mode=True)
 
     assert result["success"] is False
     assert result["status_code"] is None
@@ -64,6 +64,7 @@ async def test_post_request_with_headers_and_query_params():
             headers={"Content-Type": "application/json", "X-Custom": "value"},
             query_params={"filter": "active"},
             expected_status_codes=[200, 201],
+            test_mode=True,
         )
 
     assert result["success"] is True
@@ -80,6 +81,7 @@ async def test_unexpected_status_code():
         result = await fetch_endpoint(
             "https://api.example.com/error",
             expected_status_codes=[200],
+            test_mode=True,
         )
 
     assert result["success"] is False
@@ -97,6 +99,7 @@ async def test_custom_expected_status_codes():
         result = await fetch_endpoint(
             "https://api.example.com/ok",
             expected_status_codes=[200, 201],
+            test_mode=True,
         )
 
     assert result["success"] is True

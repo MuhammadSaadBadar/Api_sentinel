@@ -56,10 +56,32 @@ class EndpointResponse(BaseModel):
 class CheckRunResponse(BaseModel):
     id: int
     endpoint_id: int
+    baseline_version: Optional[int] = None
     status: str
     duration_ms: float
     findings_json: List[Dict[str, Any]]
     checked_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Finding Schemas ---
+class FindingResponse(BaseModel):
+    id: int
+    check_run_id: int
+    json_path: str
+    change_type: str
+    expected: Optional[str] = None
+    actual: Optional[str] = None
+    severity: str
+    review_status: str
+    detected_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FindingUpdate(BaseModel):
+    review_status: str
 
     model_config = ConfigDict(from_attributes=True)
 

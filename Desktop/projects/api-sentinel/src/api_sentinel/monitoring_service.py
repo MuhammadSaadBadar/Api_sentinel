@@ -1,6 +1,7 @@
 from .http_client import fetch_endpoint
 from .contract_inference import infer_contract
 from .comparator import compare_with_contract
+from .severity import classify_finding, Severity
 
 
 async def run_monitoring_check(
@@ -12,6 +13,7 @@ async def run_monitoring_check(
     auth_config: dict = None,
     timeout_seconds: int = 30,
     expected_status_codes: list = None,
+    test_mode: bool = False,
 ) -> dict:
     """
     Orchestrates a single monitoring check for an endpoint.
@@ -49,6 +51,7 @@ async def run_monitoring_check(
         query_params=query_params,
         timeout_seconds=timeout_seconds,
         expected_status_codes=expected_status_codes,
+        test_mode=test_mode,
     )
     
     # 2. Handle network or HTTP errors
@@ -83,17 +86,50 @@ async def run_monitoring_check(
     # 5. Compare with approved contract (if it exists)
     findings = compare_with_contract(approved_contract, result["body"])
     
+    # 6. Add severity classification to findings
+    enriched_findings = []
+    for finding in findings:
+        # Determine if field is required (simple heuristic: check if in contract required array)
+        is_required = False
+        if approved_contract and "required" in approved_contract:
+            # Extract field name from JSON path (e.g., "$.field" -> "field")
+            field_name = finding["path"].replace("$", "").strip(".")
+            if field_name in approved_contract["required"]:
+                is_required = True
+        
+        severity = classify_finding(
+            change_type=finding["change"],
+            json_path=finding["path"],
+            expected=finding.get("expected"),
+            actual=finding.get("actual"),
+            is_required_field=is_required,
+        )
+        
+        enriched_findings.append({
+            **finding,
+            "severity": severity.value,
+        })
+    
     # Determine status based on findings
     if len(findings) == 0:
         status = "healthy"
         message = "No structural changes detected."
     else:
-        status = "changes_detected"
-        message = f"{len(findings)} structural change(s) detected."
+        # Check for breaking changes
+        has_breaking = any(
+            f["severity"] in (Severity.CRITICAL.value, Severity.HIGH.value)
+            for f in enriched_findings
+        )
+        if has_breaking:
+            status = "breaking_changes_detected"
+            message = f"{len(enriched_findings)} change(s) detected, including breaking changes."
+        else:
+            status = "changes_detected"
+            message = f"{len(enriched_findings)} structural change(s) detected."
         
     return {
         "status": status,
         "message": message,
         "duration_ms": result["duration_ms"],
-        "findings": findings
+        "findings": enriched_findings
     }

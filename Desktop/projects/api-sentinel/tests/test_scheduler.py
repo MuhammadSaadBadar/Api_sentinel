@@ -67,7 +67,7 @@ async def test_run_check_for_endpoint(test_db):
             return_value=httpx.Response(200, json={"id": 1})
         )
 
-        await run_check_for_endpoint(endpoint.id)
+        await run_check_for_endpoint(endpoint.id, test_mode=True)
 
     saved_run = test_db.query(CheckRun).first()
     assert saved_run is not None
@@ -104,13 +104,14 @@ async def test_run_check_saves_breaking_change(test_db):
             return_value=httpx.Response(200, json={"price": "4500"})
         )
 
-        await run_check_for_endpoint(endpoint.id)
+        await run_check_for_endpoint(endpoint.id, test_mode=True)
 
     saved_run = test_db.query(CheckRun).first()
     assert saved_run is not None
-    assert saved_run.status == "changes_detected"
+    assert saved_run.status == "breaking_changes_detected"
     assert len(saved_run.findings_json) == 1
     assert saved_run.findings_json[0]["change"] == "type_changed"
+    assert saved_run.findings_json[0]["severity"] == "high"
 
 
 @pytest.mark.asyncio

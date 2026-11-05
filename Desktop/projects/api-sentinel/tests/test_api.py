@@ -1,3 +1,6 @@
+import os
+os.environ["TEST_MODE"] = "true"
+
 import pytest
 import httpx
 import respx

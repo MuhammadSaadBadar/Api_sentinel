@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean, Text, Index
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 DATABASE_URL = "sqlite:///sentinel.db"
@@ -52,12 +52,36 @@ class CheckRun(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     endpoint_id = Column(Integer, ForeignKey("endpoints.id"))
+    baseline_version = Column(Integer, nullable=True)
     status = Column(String, nullable=False)
     duration_ms = Column(Float)
     findings_json = Column(JSON, default=list)
     checked_at = Column(DateTime(timezone=True), default=utc_now)
 
     endpoint = relationship("Endpoint", back_populates="check_runs")
+    findings = relationship("Finding", back_populates="check_run", cascade="all, delete-orphan")
+
+
+class Finding(Base):
+    __tablename__ = "findings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    check_run_id = Column(Integer, ForeignKey("check_runs.id"), nullable=False)
+    json_path = Column(String, nullable=False)
+    change_type = Column(String, nullable=False)
+    expected = Column(String, nullable=True)
+    actual = Column(String, nullable=True)
+    severity = Column(String, nullable=False, default="info")
+    review_status = Column(String, nullable=False, default="new")
+    detected_at = Column(DateTime(timezone=True), default=utc_now)
+
+    check_run = relationship("CheckRun", back_populates="findings")
+
+    __table_args__ = (
+        Index("ix_findings_check_run_id", "check_run_id"),
+        Index("ix_findings_severity", "severity"),
+        Index("ix_findings_review_status", "review_status"),
+    )
 
 
 def init_db():

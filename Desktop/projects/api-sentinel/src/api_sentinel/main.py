@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,6 +11,11 @@ from .db import get_db, init_db, Endpoint, Baseline, CheckRun
 from .schemas import EndpointCreate, EndpointUpdate, EndpointResponse, CheckRunResponse, BaselineResponse
 from .monitoring_service import run_monitoring_check
 from .scheduler import scheduler_lifespan, schedule_endpoint, unschedule_endpoint
+
+
+def is_test_mode() -> bool:
+    """Check if running in test mode."""
+    return os.environ.get("TEST_MODE", "false").lower() == "true"
 
 
 @asynccontextmanager
@@ -407,6 +413,7 @@ async def approve_baseline(endpoint_id: int, db: Session = Depends(get_db)):
         auth_config=endpoint.auth_config,
         timeout_seconds=endpoint.timeout_seconds,
         expected_status_codes=endpoint.expected_status_codes,
+        test_mode=is_test_mode(),
     )
 
     if result["status"] != "awaiting_approval":
