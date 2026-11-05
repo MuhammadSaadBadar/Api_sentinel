@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Login - API Sentinel{% endblock %}
+
+{% block content %}
+<div class="auth-container" style="max-width: 400px; margin: 3rem auto;">
+    <div class="card">
+        <h2 style="text-align: center; margin-bottom: 1.5rem;">Login to API Sentinel</h2>
+        
+        <form action="/auth/login" method="post" hx-post="/auth/login" hx-target="body" hx-swap="innerHTML">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Login</button>
+        </form>
+        
+        <p style="text-align: center; margin-top: 1.5rem; color: var(--pico-muted-color);">
+            Don't have an account? <a href="/ui/register">Register</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

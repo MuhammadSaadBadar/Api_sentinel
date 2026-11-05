@@ -1,21 +1,22 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query
+from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
-from .db import get_db, init_db, Endpoint, Baseline, CheckRun
-from .schemas import EndpointCreate, EndpointUpdate, EndpointResponse, CheckRunResponse, BaselineResponse
+from .db import get_db, init_db, Endpoint, Baseline, CheckRun, User
+from .schemas import EndpointCreate, EndpointUpdate, EndpointResponse, CheckRunResponse, BaselineResponse, UserCreate, UserResponse, Token, LoginRequest, RefreshRequest, APIKeyResponse
 from .monitoring_service import run_monitoring_check
 from .scheduler import scheduler_lifespan, schedule_endpoint, unschedule_endpoint
-
-
-def is_test_mode() -> bool:
-    """Check if running in test mode."""
-    return os.environ.get("TEST_MODE", "false").lower() == "true"
+from .auth import (
+    authenticate_user, create_user, create_access_token, create_refresh_token,
+    get_current_user, get_current_user_from_token, require_admin, require_auth,
+    generate_api_key, hash_api_key, set_auth_cookies, clear_auth_cookies,
+    decode_token, get_user_by_id,
+)
 
 
 @asynccontextmanager
@@ -73,6 +74,11 @@ async def render_template(template_name: str, context: dict) -> HTMLResponse:
     return HTMLResponse(content=content)
 
 
+def utc_now():
+    """Helper to return timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
 def get_latest_status(db: Session, endpoint: Endpoint) -> str:
     """Get the latest status for an endpoint."""
     latest_check = db.query(CheckRun).filter(CheckRun.endpoint_id == endpoint.id).order_by(CheckRun.checked_at.desc()).first()
@@ -99,6 +105,11 @@ def get_all_baselines(db: Session, endpoint: Endpoint):
 
 def get_all_checks(db: Session, endpoint: Endpoint, limit: int = 50):
     return db.query(CheckRun).filter(CheckRun.endpoint_id == endpoint.id).order_by(CheckRun.checked_at.desc()).limit(limit).all()
+
+
+def is_test_mode() -> bool:
+    """Check if running in test mode."""
+    return os.environ.get("TEST_MODE", "false").lower() == "true"
 
 
 # ==================== UI ROUTES ====================
@@ -231,48 +242,6 @@ async def ui_edit_endpoint(endpoint_id: int, request: Request, db: Session = Dep
         "endpoint": ep,
         "action_url": f"/endpoints/{endpoint_id}",
         "method": "PATCH",
-    })
-
-
-@app.get("/ui/endpoints/{endpoint_id}/baselines/{version}", response_class=HTMLResponse)
-async def ui_baseline_detail(endpoint_id: int, version: int, request: Request, db: Session = Depends(get_db)):
-    """Baseline detail page."""
-    ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
-    if not ep:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
-    
-    baseline = db.query(Baseline).filter(
-        Baseline.endpoint_id == endpoint_id, 
-        Baseline.version == version
-    ).first()
-    if not baseline:
-        raise HTTPException(status_code=404, detail="Baseline not found")
-    
-    return await render_template("endpoints/baseline_detail.html", {
-        "request": request,
-        "endpoint": ep,
-        "baseline": baseline,
-    })
-
-
-@app.get("/ui/endpoints/{endpoint_id}/checks/{check_id}", response_class=HTMLResponse)
-async def ui_check_detail(endpoint_id: int, check_id: int, request: Request, db: Session = Depends(get_db)):
-    """Check detail page with findings."""
-    ep = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
-    if not ep:
-        raise HTTPException(status_code=404, detail="Endpoint not found")
-    
-    check = db.query(CheckRun).filter(
-        CheckRun.id == check_id,
-        CheckRun.endpoint_id == endpoint_id
-    ).first()
-    if not check:
-        raise HTTPException(status_code=404, detail="Check not found")
-    
-    return await render_template("endpoints/check_detail.html", {
-        "request": request,
-        "endpoint": ep,
-        "check": check,
     })
 
 
@@ -462,3 +431,126 @@ def get_endpoint_checks(endpoint_id: int, limit: int = 10, db: Session = Depends
         .limit(limit)
         .all()
     )
+
+
+# --- Auth Routes ---
+
+@app.post("/auth/register", response_model=UserResponse, status_code=201)
+def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user (admin only in production)."""
+    existing = db.query(User).filter(User.username == user_in.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    user = create_user(db, user_in.username, user_in.password, user_in.role)
+    return user
+
+
+@app.post("/auth/login", response_model=Token)
+async def login(response: Response, login_in: LoginRequest, db: Session = Depends(get_db)):
+    """Login with username and password, returns JWT tokens."""
+    user = authenticate_user(db, login_in.username, login_in.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Update last login
+    user.last_login = utc_now()
+    db.commit()
+    
+    access_token = create_access_token(data={"sub": str(user.id), "username": user.username, "role": user.role})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    
+    set_auth_cookies(response, access_token, refresh_token)
+    
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
+
+@app.post("/auth/refresh", response_model=Token)
+async def refresh_token(response: Response, refresh_in: RefreshRequest, db: Session = Depends(get_db)):
+    """Refresh access token using refresh token."""
+    payload = decode_token(refresh_in.refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user = get_user_by_id(db, int(user_id))
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    
+    access_token = create_access_token(data={"sub": str(user.id), "username": user.username, "role": user.role})
+    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    
+    set_auth_cookies(response, access_token, new_refresh_token)
+    
+    return Token(access_token=access_token, refresh_token=new_refresh_token)
+
+
+@app.post("/auth/logout")
+async def logout(response: Response):
+    """Logout and clear cookies."""
+    clear_auth_cookies(response)
+    return {"message": "Logged out successfully"}
+
+
+@app.get("/auth/me", response_model=UserResponse)
+def get_current_user_info(user: User = Depends(get_current_user_from_token)):
+    """Get current authenticated user info."""
+    return user
+
+
+# --- API Key Management ---
+
+@app.post("/endpoints/{endpoint_id}/api-key", response_model=APIKeyResponse)
+def generate_endpoint_api_key(endpoint_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    """Generate a new API key for an endpoint (admin only)."""
+    endpoint = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+    
+    api_key = generate_api_key()
+    endpoint.api_key_hash = hash_api_key(api_key)
+    db.commit()
+    db.refresh(endpoint)
+    
+    return APIKeyResponse(
+        api_key=api_key,
+        endpoint_id=endpoint.id,
+        created_at=utc_now(),
+    )
+
+
+@app.delete("/endpoints/{endpoint_id}/api-key")
+def revoke_endpoint_api_key(endpoint_id: int, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    """Revoke API key for an endpoint (admin only)."""
+    endpoint = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+    
+    endpoint.api_key_hash = None
+    db.commit()
+    
+    return {"message": "API key revoked"}
+
+
+# --- UI Auth Routes ---
+
+@app.get("/ui/login", response_class=HTMLResponse)
+async def ui_login(request: Request):
+    """Login page."""
+    return await render_template("auth/login.html", {"request": request})
+
+
+@app.get("/ui/register", response_class=HTMLResponse)
+async def ui_register(request: Request):
+    """Register page (admin only in production)."""
+    return await render_template("auth/register.html", {"request": request})

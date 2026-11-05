@@ -48,6 +48,7 @@ class EndpointResponse(BaseModel):
     interval_seconds: int
     is_active: bool
     created_at: datetime
+    api_key: Optional[str] = None  # Only returned on create
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -95,3 +96,48 @@ class BaselineResponse(BaseModel):
     approved_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Auth Schemas ---
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "viewer"  # admin, viewer
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class TokenPayload(BaseModel):
+    sub: str
+    exp: int
+    type: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class APIKeyResponse(BaseModel):
+    api_key: str
+    endpoint_id: int
+    created_at: datetime

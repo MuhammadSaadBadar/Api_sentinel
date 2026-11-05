@@ -14,6 +14,18 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, unique=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, default="viewer")  # admin, viewer
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
+
 class Endpoint(Base):
     __tablename__ = "endpoints"
 
@@ -30,6 +42,7 @@ class Endpoint(Base):
     interval_seconds = Column(Integer, default=300)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
+    api_key_hash = Column(String, nullable=True)
 
     baselines = relationship("Baseline", back_populates="endpoint", cascade="all, delete-orphan")
     check_runs = relationship("CheckRun", back_populates="endpoint", cascade="all, delete-orphan")
