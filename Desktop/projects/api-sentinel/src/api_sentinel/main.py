@@ -17,6 +17,7 @@ from .auth import (
     generate_api_key, hash_api_key, set_auth_cookies, clear_auth_cookies,
     decode_token, get_user_by_id,
 )
+from .rate_limit import RateLimitMiddleware
 
 
 @asynccontextmanager
@@ -30,6 +31,18 @@ app = FastAPI(
     title="API Sentinel",
     description="Monitor API contracts for breaking changes",
     lifespan=lifespan,
+)
+
+# Add rate limiting middleware
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=int(os.environ.get("RATE_LIMIT_RPM", "60")),
+    burst=int(os.environ.get("RATE_LIMIT_BURST", "10")),
+    exempt_paths={
+        "/health", "/docs", "/openapi.json", "/redoc", "/favicon.ico", "/static",
+        "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout", "/auth/me",
+        "/ui/login", "/ui/register",
+    },
 )
 
 # Templates and static files

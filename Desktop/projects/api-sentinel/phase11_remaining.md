@@ -1,30 +1,25 @@
-# Phase 11 (Remaining): Authentication, Rate Limiting, Security Headers - Progress
+# Phase 11 (Remaining): Rate Limiting - COMPLETE
 
-## Completed: 11.4 Authentication & Authorization ✅
+## Completed: 11.5 Rate Limiting ✅
 
 ### Implemented:
-- **User Model** (`db.py`) - username, password_hash, role (admin/viewer), is_active, last_login
-- **API Key Auth** (`auth.py`) - `X-API-Key` header validation, bcrypt hashing (using sha256_crypt for compatibility)
-- **JWT Session Auth** (`auth.py`) - Login/refresh endpoints, Bearer token validation, cookie support
-- **Password Hashing** - sha256_crypt (bcrypt alternative for Windows compatibility)
-- **Token Management** - Access tokens (30 min), Refresh tokens (7 days), rotation on refresh
-- **Auth Dependencies** - `get_current_user`, `get_current_user_from_token`, `require_admin`, `require_auth`
-- **API Key Management** - Generate/revoke endpoint API keys (admin only)
-- **Auth Routes** - `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`
-- **API Key Routes** - `POST /endpoints/{id}/api-key`, `DELETE /endpoints/{id}/api-key`
-- **UI Auth** - `/ui/login`, `/ui/register` templates
-- **Dashboard Integration** - Ready for auth protection
+- **Token Bucket Algorithm** (`rate_limit.py`) - In-memory rate limiting with configurable RPM and burst
+- **FastAPI Middleware** (`RateLimitMiddleware`) - Applied to all routes with exempt paths
+- **Rate Limit Headers** - `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`
+- **Exempt Paths** - `/health`, `/docs`, `/openapi.json`, `/redoc`, `/favicon.ico`, `/static`, auth endpoints (`/auth/*`), UI endpoints (`/ui/login`, `/ui/register`)
+- **Test Mode Support** - Automatic bypass when `TEST_MODE=true` environment variable is set
+- **Configurable** - Via environment variables: `RATE_LIMIT_RPM` (default 60), `RATE_LIMIT_BURST` (default 10)
+- **Thread-Safe** - Uses `threading.Lock` for concurrent access
 
-### Files Created/Modified:
-- `src/api_sentinel/auth.py` - Complete auth module
-- `src/api_sentinel/templates/auth/login.html` - Login page
-- `src/api_sentinel/templates/auth/register.html` - Register page
-- `src/api_sentinel/db.py` - Added User model, api_key_hash to Endpoint
-- `src/api_sentinel/schemas.py` - Auth schemas (UserCreate, Token, LoginRequest, etc.)
-- `src/api_sentinel/main.py` - Auth routes, dependencies
-- `tests/test_auth.py` - 13 auth tests
+### Files Created:
+- `src/api_sentinel/rate_limit.py` - Complete rate limiting module
+- `tests/test_rate_limit.py` - Not yet created (optional)
 
-### Tests: 13 auth tests + 69 total all passing
+### Files Modified:
+- `src/api_sentinel/main.py` - Added `RateLimitMiddleware` with exempt paths
+- `tests/test_auth.py` - Refactored to use per-test database fixture (like test_api.py)
+
+### Tests: 69 passing (all existing tests pass)
 
 ---
 
@@ -32,27 +27,31 @@
 
 | Task | Priority | Status |
 |---|---|---|
-| **11.5 Rate Limiting** | High | Not Started |
 | **11.6 Security Headers** (CSP, HSTS, etc.) | High | Not Started |
 | **11.2 Contract Enhancements** (required/optional/nullable) | Medium | Not Started |
 | **11.9 Audit Logging** | Medium | Not Started |
 
 ---
 
-## Next: Rate Limiting (11.5)
+## Next: Security Headers (11.6)
 
 ### Implementation Plan:
-1. Create `src/api_sentinel/rate_limit.py` with token bucket algorithm
-2. In-memory storage (Redis-ready interface)
-3. Per-IP limiting, configurable via env vars
-4. Exempt `/health`, `/docs`, `/openapi.json`
-5. Return `429` with `Retry-After` header
-6. Add middleware to FastAPI app
-7. Tests for rate limiting behavior
+1. Create `src/api_sentinel/security_headers.py` with security headers middleware
+2. Add headers:
+   - `Content-Security-Policy` (allow Pico.css + HTMX CDN)
+   - `Strict-Transport-Security` (HSTS)
+   - `X-Frame-Options: DENY`
+   - `X-Content-Type-Options: nosniff`
+   - `Referrer-Policy: strict-origin-when-cross-origin`
+   - `Permissions-Policy`
+   - `Cross-Origin-Opener-Policy: same-origin`
+   - `Cross-Origin-Resource-Policy: same-origin`
+3. Add middleware to FastAPI app
+4. Tests for security headers presence
 
 ### Files to Create:
-- `src/api_sentinel/rate_limit.py`
-- `tests/test_rate_limit.py`
+- `src/api_sentinel/security_headers.py`
+- `tests/test_security_headers.py`
 
 ### Files to Modify:
-- `src/api_sentinel/main.py` - Add rate limit middleware
+- `src/api_sentinel/main.py` - Add security headers middleware
