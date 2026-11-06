@@ -1,25 +1,28 @@
-# Phase 11 (Remaining): Rate Limiting - COMPLETE
+# Phase 11 (Remaining): Security Headers - COMPLETE
 
-## Completed: 11.5 Rate Limiting ✅
+## Completed: 11.6 Security Headers ✅
 
 ### Implemented:
-- **Token Bucket Algorithm** (`rate_limit.py`) - In-memory rate limiting with configurable RPM and burst
-- **FastAPI Middleware** (`RateLimitMiddleware`) - Applied to all routes with exempt paths
-- **Rate Limit Headers** - `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`
-- **Exempt Paths** - `/health`, `/docs`, `/openapi.json`, `/redoc`, `/favicon.ico`, `/static`, auth endpoints (`/auth/*`), UI endpoints (`/ui/login`, `/ui/register`)
-- **Test Mode Support** - Automatic bypass when `TEST_MODE=true` environment variable is set
-- **Configurable** - Via environment variables: `RATE_LIMIT_RPM` (default 60), `RATE_LIMIT_BURST` (default 10)
-- **Thread-Safe** - Uses `threading.Lock` for concurrent access
+- **SecurityHeadersMiddleware** (`security_headers.py`) - Adds comprehensive security headers to all responses
+- **Content-Security-Policy (CSP)** - Allows Pico.css (cdn.jsdelivr.net) and HTMX (unpkg.com) CDNs, inline styles/scripts for HTMX
+- **Strict-Transport-Security (HSTS)** - 1 year max-age, includeSubDomains, preload
+- **X-Frame-Options: DENY** - Prevents clickjacking
+- **X-Content-Type-Options: nosniff** - Prevents MIME sniffing
+- **Referrer-Policy: strict-origin-when-cross-origin** - Controls referrer information
+- **Permissions-Policy** - Blocks accelerometer, camera, geolocation, gyroscope, magnetometer, microphone, payment, usb
+- **Cross-Origin-Opener-Policy: same-origin** - Isolates browsing context
+- **Cross-Origin-Resource-Policy: same-origin** - Prevents cross-origin resource loading
+- **Server header removed** - Information hiding
+- **Test Mode Support** - Headers skipped when `TEST_MODE=true` for testing
 
 ### Files Created:
-- `src/api_sentinel/rate_limit.py` - Complete rate limiting module
-- `tests/test_rate_limit.py` - Not yet created (optional)
+- `src/api_sentinel/security_headers.py` - Security headers middleware
+- `tests/test_security_headers.py` - 16 comprehensive tests
 
 ### Files Modified:
-- `src/api_sentinel/main.py` - Added `RateLimitMiddleware` with exempt paths
-- `tests/test_auth.py` - Refactored to use per-test database fixture (like test_api.py)
+- `src/api_sentinel/main.py` - Added SecurityHeadersMiddleware
 
-### Tests: 69 passing (all existing tests pass)
+### Tests: 85 passing (16 new security headers tests)
 
 ---
 
@@ -27,31 +30,26 @@
 
 | Task | Priority | Status |
 |---|---|---|
-| **11.6 Security Headers** (CSP, HSTS, etc.) | High | Not Started |
 | **11.2 Contract Enhancements** (required/optional/nullable) | Medium | Not Started |
 | **11.9 Audit Logging** | Medium | Not Started |
 
 ---
 
-## Next: Security Headers (11.6)
+## Next: Contract Enhancements (11.2)
 
 ### Implementation Plan:
-1. Create `src/api_sentinel/security_headers.py` with security headers middleware
-2. Add headers:
-   - `Content-Security-Policy` (allow Pico.css + HTMX CDN)
-   - `Strict-Transport-Security` (HSTS)
-   - `X-Frame-Options: DENY`
-   - `X-Content-Type-Options: nosniff`
-   - `Referrer-Policy: strict-origin-when-cross-origin`
-   - `Permissions-Policy`
-   - `Cross-Origin-Opener-Policy: same-origin`
-   - `Cross-Origin-Resource-Policy: same-origin`
-3. Add middleware to FastAPI app
-4. Tests for security headers presence
-
-### Files to Create:
-- `src/api_sentinel/security_headers.py`
-- `tests/test_security_headers.py`
+1. Update `contract_inference.py` to track field presence across samples
+2. Add `required`, `optional`, `nullable` arrays to contract JSON
+3. Update `comparator.py` to validate required fields
+4. Missing required field = CRITICAL severity
+5. Optional field missing = no finding (or INFO)
+6. Nullable field with null = valid
 
 ### Files to Modify:
-- `src/api_sentinel/main.py` - Add security headers middleware
+- `src/api_sentinel/contract_inference.py`
+- `src/api_sentinel/comparator.py`
+- `src/api_sentinel/schemas.py` (if needed)
+- `tests/test_contract_inference.py`, `tests/test_comparator.py`
+
+### Files to Create:
+- `tests/test_contract_enhancements.py`

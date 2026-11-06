@@ -18,6 +18,7 @@ from .auth import (
     decode_token, get_user_by_id,
 )
 from .rate_limit import RateLimitMiddleware
+from .security_headers import SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -44,6 +45,9 @@ app.add_middleware(
         "/ui/login", "/ui/register",
     },
 )
+
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Templates and static files
 import json
